@@ -62,6 +62,16 @@ class StockstatsUtils:
                 data = pd.read_csv(data_file)
                 data["Date"] = pd.to_datetime(data["Date"])
             else:
+                # 设置yfinance专用代理
+                config = get_config()
+                if config.get("use_proxy", False):
+                    http_proxy = config.get("http_proxy")
+                    https_proxy = config.get("https_proxy")
+                    if http_proxy:
+                        os.environ["http_proxy"] = http_proxy
+                    if https_proxy:
+                        os.environ["https_proxy"] = https_proxy
+                
                 data = yf.download(
                     symbol,
                     start=start_date,

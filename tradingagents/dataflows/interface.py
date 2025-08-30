@@ -630,6 +630,16 @@ def get_YFin_data_online(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
+    # 设置yfinance专用代理
+    config = get_config()
+    if config.get("use_proxy", False):
+        import os
+        http_proxy = config.get("http_proxy")
+        https_proxy = config.get("https_proxy")
+        if http_proxy:
+            os.environ["http_proxy"] = http_proxy
+        if https_proxy:
+            os.environ["https_proxy"] = https_proxy
 
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
@@ -672,6 +682,16 @@ def get_YFin_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
+    # 设置yfinance专用代理
+    config = get_config()
+    if config.get("use_proxy", False):
+        import os
+        http_proxy = config.get("http_proxy")
+        https_proxy = config.get("https_proxy")
+        if http_proxy:
+            os.environ["http_proxy"] = http_proxy
+        if https_proxy:
+            os.environ["https_proxy"] = https_proxy
     # read in data
     data = pd.read_csv(
         os.path.join(
@@ -730,7 +750,7 @@ def get_stock_news_openai(ticker, curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period.",
+                        "text": f"您能否搜索从{curr_date}前7天到{curr_date}期间关于{ticker}的社交媒体信息？确保您只获取该时间段内发布的数据。",
                     }
                 ],
             }
@@ -781,7 +801,7 @@ def get_global_news_openai(curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search global or macroeconomics news from 7 days before {curr_date} to {curr_date} that would be informative for trading purposes? Make sure you only get the data posted during that period.",
+                        "text": f"您能否搜索从{curr_date}前7天到{curr_date}期间对交易有参考价值的全球或宏观经济新闻？确保您只获取该时间段内发布的数据。",
                     }
                 ],
             }
@@ -832,7 +852,7 @@ def get_fundamentals_openai(ticker, curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
+                        "text": f"您能否搜索关于{ticker}在{curr_date}前一个月到{curr_date}月期间的基本面讨论？确保您只获取该时间段内发布的数据。请以表格形式列出，包含PE/PS/现金流等。",
                     }
                 ],
             }

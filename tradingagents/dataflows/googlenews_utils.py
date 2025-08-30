@@ -65,19 +65,45 @@ def getNewsData(query, start_date, end_date):
 
         try:
             response = make_request(url, headers)
+            
+            # 检查响应状态
+            if response.status_code != 200:
+                print(f"HTTP错误 {response.status_code}，跳过此页面")
+                break
+                
             soup = BeautifulSoup(response.content, "html.parser")
             results_on_page = soup.select("div.SoaBEf")
 
             if not results_on_page:
+                print("未找到新闻结果，可能是HTML结构发生变化或被反爬虫")
                 break  # No more results found
 
             for el in results_on_page:
                 try:
-                    link = el.find("a")["href"]
-                    title = el.select_one("div.MBeuO").get_text()
-                    snippet = el.select_one(".GI74Re").get_text()
-                    date = el.select_one(".LfVVr").get_text()
-                    source = el.select_one(".NUnG9d span").get_text()
+                    # 安全获取链接
+                    link_element = el.find("a")
+                    if not link_element or "href" not in link_element.attrs:
+                        continue
+                    link = link_element["href"]
+                    
+                    # 安全获取标题
+                    title_element = el.select_one("div.MBeuO")
+                    if not title_element:
+                        continue
+                    title = title_element.get_text()
+                    
+                    # 安全获取摘要
+                    snippet_element = el.select_one(".GI74Re")
+                    snippet = snippet_element.get_text() if snippet_element else ""
+                    
+                    # 安全获取日期
+                    date_element = el.select_one(".LfVVr")
+                    date = date_element.get_text() if date_element else ""
+                    
+                    # 安全获取来源
+                    source_element = el.select_one(".NUnG9d span")
+                    source = source_element.get_text() if source_element else ""
+                    
                     news_results.append(
                         {
                             "link": link,
@@ -92,7 +118,7 @@ def getNewsData(query, start_date, end_date):
                     # If one of the fields is not found, skip this result
                     continue
 
-            # Update the progress bar with the current count of results scraped
+            print(f"成功获取 {len(news_results)} 条新闻（第{page+1}页）")
 
             # Check for the "Next" link (pagination)
             next_link = soup.find("a", id="pnnext")
@@ -102,7 +128,8 @@ def getNewsData(query, start_date, end_date):
             page += 1
 
         except Exception as e:
-            print(f"Failed after multiple retries: {e}")
+            print(f"抓取新闻时发生错误: {e}")
             break
 
+    print(f"Google新闻抓取完成，共获取 {len(news_results)} 条新闻")
     return news_results
