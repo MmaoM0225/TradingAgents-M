@@ -1,7 +1,10 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -144,10 +147,29 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
             ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
         ],
+        "deepseek": [
+            ("DeepSeek Chat - Fast general purpose model for quick responses", "deepseek-chat"),
+            ("DeepSeek Reasoner - Enhanced reasoning and complex analysis", "deepseek-reasoner"),
+        ],
+        "siliconflow": [
+            ("Qwen2.5-7B-Instruct - 高效能对话模型", "Qwen/Qwen2.5-7B-Instruct"),
+            ("DeepSeek-V3 - 硅基流动上的DeepSeek模型", "deepseek-ai/DeepSeek-V3"),
+        ],
+        "alibaba dashscope": [
+            ("Qwen-Plus - 通义千问增强版", "qwen-plus"),
+            ("Qwen-Flash - 通义千问快速版", "qwen-flash"),
+            ("Qwen-Max - 通义千问旗舰版", "qwen-max"),
+            ("Qwen-Turbo - 通义千问高速版", "qwen-turbo"),
+            ("DeepSeek-V3.1 - 深度求索推理模型", "deepseek-v3.1"),
+            ("DeepSeek-R1-Distill-Qwen-14B - 蒸馏版推理模型", "deepseek-r1-distill-qwen-14b"),
+        ],
         "openrouter": [
-            ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
+            ("DeepSeek R1 - Latest reasoning model with advanced capabilities", "deepseek/deepseek-r1:free"),
+            ("DeepSeek Chat v3.1 - Enhanced conversational model", "deepseek/deepseek-chat-v3.1:free"),
+            ("OpenAI GPT OSS 20B - Open source GPT model", "openai/gpt-oss-20b:free"),
+            ("Qwen3 14B - Efficient multilingual model", "qwen/qwen3-14b:free"),
+            ("DeepSeek Chat v3 - Stable production model", "deepseek/deepseek-chat-v3-0324:free"),
+            ("DeepSeek R1 0528 - Optimized reasoning variant", "deepseek/deepseek-r1-0528:free"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
@@ -207,9 +229,30 @@ def select_deep_thinking_agent(provider) -> str:
             ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
             ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
         ],
+        "deepseek": [
+            ("DeepSeek Chat - General purpose conversational model", "deepseek-chat"),
+            ("DeepSeek Reasoner - Enhanced reasoning and complex analysis", "deepseek-reasoner"),
+        ],
+        "siliconflow": [
+            ("Qwen2.5-72B-Instruct - 大规模参数对话模型", "Qwen/Qwen2.5-72B-Instruct"),
+            ("DeepSeek-V3 - 硅基流动上的DeepSeek推理模型", "deepseek-ai/DeepSeek-V3"),
+            ("GLM-4-9B-Chat - 智谱AI对话模型", "THUDM/glm-4-9b-chat"),
+        ],
+        "alibaba dashscope": [
+            ("Qwen-Plus - 通义千问增强版", "qwen-plus"),
+            ("Qwen-Flash - 通义千问快速版", "qwen-flash"),
+            ("Qwen-Max - 通义千问旗舰版", "qwen-max"),
+            ("Qwen-Turbo - 通义千问高速版", "qwen-turbo"),
+            ("DeepSeek-V3.1 - 深度求索推理模型", "deepseek-v3.1"),
+            ("DeepSeek-R1-Distill-Qwen-14B - 蒸馏版推理模型", "deepseek-r1-distill-qwen-14b"),
+        ],
         "openrouter": [
-            ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
+            ("DeepSeek R1 - Latest reasoning model with advanced capabilities", "deepseek/deepseek-r1:free"),
+            ("DeepSeek Chat v3.1 - Enhanced conversational model", "deepseek/deepseek-chat-v3.1:free"),
+            ("OpenAI GPT OSS 20B - Open source GPT model", "openai/gpt-oss-20b:free"),
+            ("Qwen3 14B - Efficient multilingual model", "qwen/qwen3-14b:free"),
+            ("DeepSeek Chat v3 - Stable production model", "deepseek/deepseek-chat-v3-0324:free"),
+            ("DeepSeek R1 0528 - Optimized reasoning variant", "deepseek/deepseek-r1-0528:free"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
@@ -247,7 +290,10 @@ def select_llm_provider() -> tuple[str, str]:
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
+        ("DeepSeek", "https://api.deepseek.com/v1"),
+        ("SiliconFlow", "https://api.siliconflow.cn/v1"),
+        ("Alibaba DashScope", "https://dashscope.aliyuncs.com/compatible-mode/v1"),        
     ]
     
     choice = questionary.select(

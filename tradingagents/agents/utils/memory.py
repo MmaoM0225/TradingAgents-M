@@ -1,15 +1,40 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
-            self.embedding = "nomic-embed-text"
-        else:
+        # Get embedding provider from environment variable (default to openai)
+        embedding_provider = os.getenv("EMBEDDING_PROVIDER", "openai").lower()
+        
+        # Configure embedding model and client based on provider
+        if embedding_provider == "openai":
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            api_key = os.getenv("OPENAI_API_KEY")
+            self.client = OpenAI( base_url="https://api.openai.com/v1", api_key=api_key)
+            
+        elif embedding_provider == "siliconflow":
+            self.embedding = "Qwen/Qwen3-Embedding-4B"
+            api_key = os.getenv("SILICONFLOW_API_KEY")
+            self.client = OpenAI(base_url="https://api.siliconflow.cn/v1", api_key=api_key)
+            
+        elif embedding_provider == "dashscope":
+            self.embedding = "text-embedding-v3"
+            api_key = os.getenv("DASHSCOPE_API_KEY")
+            self.client = OpenAI(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1", api_key=api_key)
+            
+        else:
+            raise ValueError(f"Unsupported embedding provider: {embedding_provider}. Supported: openai, siliconflow, dashscope")
+        
+        if not api_key:
+            raise ValueError(f"API key not found for embedding provider '{embedding_provider}'. Please set the corresponding environment variable.")
+            
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 

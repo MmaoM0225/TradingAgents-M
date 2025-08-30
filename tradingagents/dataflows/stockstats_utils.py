@@ -71,7 +71,7 @@ class StockstatsUtils:
                     auto_adjust=True,
                 )
                 data = data.reset_index()
-                data.to_csv(data_file, index=False)
+                data.to_csv(data_file, index=False, encoding='utf-8')
 
             df = wrap(data)
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")

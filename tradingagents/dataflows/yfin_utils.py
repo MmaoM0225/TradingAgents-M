@@ -66,7 +66,7 @@ class YFinanceUtils:
         }
         company_info_df = DataFrame([company_info])
         if save_path:
-            company_info_df.to_csv(save_path)
+            company_info_df.to_csv(save_path, encoding='utf-8')
             print(f"Company info for {ticker.ticker} saved to {save_path}")
         return company_info_df
 
@@ -78,7 +78,7 @@ class YFinanceUtils:
         ticker = symbol
         dividends = ticker.dividends
         if save_path:
-            dividends.to_csv(save_path)
+            dividends.to_csv(save_path, encoding='utf-8')
             print(f"Dividends for {ticker.ticker} saved to {save_path}")
         return dividends
 
