@@ -28,42 +28,38 @@ class StockstatsUtils:
         df = None
         data = None
 
+        # Get config for unified path configuration
+        config = get_config()
+        
         if not online:
             try:
-                data = pd.read_csv(
-                    os.path.join(
-                        data_dir,
-                        f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-                    )
-                )
+                # 使用动态文件查找功能
+                from .utils import get_or_generate_data_filename
+                data_file = get_or_generate_data_filename(symbol, "price")
+                data = pd.read_csv(data_file)
                 df = wrap(data)
             except FileNotFoundError:
                 raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
         else:
-            # Get today's date as YYYY-mm-dd to add to cache
-            today_date = pd.Timestamp.today()
-            curr_date = pd.to_datetime(curr_date)
-
-            end_date = today_date
-            start_date = today_date - pd.DateOffset(years=15)
-            start_date = start_date.strftime("%Y-%m-%d")
-            end_date = end_date.strftime("%Y-%m-%d")
-
-            # Get config and ensure cache directory exists
-            config = get_config()
+            # 使用统一的动态日期范围和文件查找
+            from .utils import get_or_generate_data_filename, get_dynamic_date_range
+            
+            # 转换curr_date为字符串（如果需要）
+            if hasattr(curr_date, 'strftime'):
+                curr_date_str = curr_date.strftime("%Y-%m-%d")
+            else:
+                curr_date_str = str(curr_date)
+            
+            # 统一使用config配置的data_cache_dir并确保目录存在
             os.makedirs(config["data_cache_dir"], exist_ok=True)
 
-            data_file = os.path.join(
-                config["data_cache_dir"],
-                f"{symbol}-YFin-data-{start_date}-{end_date}.csv",
-            )
+            data_file = get_or_generate_data_filename(symbol, "cache")
 
             if os.path.exists(data_file):
                 data = pd.read_csv(data_file)
                 data["Date"] = pd.to_datetime(data["Date"])
             else:
                 # 设置yfinance专用代理
-                config = get_config()
                 if config.get("use_proxy", False):
                     http_proxy = config.get("http_proxy")
                     https_proxy = config.get("https_proxy")
@@ -71,6 +67,9 @@ class StockstatsUtils:
                         os.environ["http_proxy"] = http_proxy
                     if https_proxy:
                         os.environ["https_proxy"] = https_proxy
+                
+                # 获取动态日期范围用于下载
+                start_date, end_date = get_dynamic_date_range()
                 
                 data = yf.download(
                     symbol,
@@ -85,10 +84,16 @@ class StockstatsUtils:
 
             df = wrap(data)
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-            curr_date = curr_date.strftime("%Y-%m-%d")
+            
+        # 对于offline模式，确保curr_date是字符串格式
+        if not online:
+            if hasattr(curr_date, 'strftime'):
+                curr_date_str = curr_date.strftime("%Y-%m-%d") 
+            else:
+                curr_date_str = str(curr_date)
 
         df[indicator]  # trigger stockstats to calculate the indicator
-        matching_rows = df[df["Date"].str.startswith(curr_date)]
+        matching_rows = df[df["Date"].str.startswith(curr_date_str)]
 
         if not matching_rows.empty:
             indicator_value = matching_rows[indicator].values[0]

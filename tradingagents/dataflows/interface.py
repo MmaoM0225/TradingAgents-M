@@ -594,13 +594,10 @@ def get_YFin_data_window(
     before = date_obj - relativedelta(days=look_back_days)
     start_date = before.strftime("%Y-%m-%d")
 
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
-    )
+    # read in data using dynamic file finding
+    from .utils import get_or_generate_data_filename
+    data_file = get_or_generate_data_filename(symbol, "price")
+    data = pd.read_csv(data_file)
 
     # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
@@ -692,18 +689,18 @@ def get_YFin_data(
             os.environ["http_proxy"] = http_proxy
         if https_proxy:
             os.environ["https_proxy"] = https_proxy
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
-    )
+    # read in data using dynamic file finding
+    from .utils import get_or_generate_data_filename
+    data_file = get_or_generate_data_filename(symbol, "price")
+    data = pd.read_csv(data_file)
 
-    if end_date > "2025-03-25":
-        raise Exception(
-            f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
-        )
+    # 动态检查数据日期范围而不是硬编码
+    if not data.empty:
+        data_start = data["Date"].min()[:10]  # 提取日期部分
+        data_end = data["Date"].max()[:10]
+        if end_date > data_end or start_date < data_start:
+            print(f"警告: 请求的日期范围 {start_date} 到 {end_date} 超出了数据范围 {data_start} 到 {data_end}")
+            # 不抛出异常，而是使用可用的数据范围
 
     # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
