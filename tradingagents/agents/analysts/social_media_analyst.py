@@ -10,29 +10,29 @@ def create_social_media_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_stock_news_openai]
+            tools = [toolkit.get_stock_news_llm]
         else:
             tools = [
                 toolkit.get_reddit_stock_info,
             ]
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read.""",
+            "您是一位社交媒体和公司专门新闻研究员/分析师，任务是分析过去一周特定公司的社交媒体帖子、最近公司新闻和公众情绪。您将获得一个公司的名称，您的目标是在查看社交媒体和人们对该公司的评论、分析人们每天对该公司感受的情绪数据以及查看最近公司新闻后，写一份关于该公司当前状态的全面长篇报告，详细说明您的分析、见解和对交易者和投资者的含义。尝试从社交媒体到情绪再到新闻查看所有可能的源。不要简单地说趋势是混合的，提供详细和精细的分析和见解，可能有助于交易者做出决策。"
+            + """ 确保在报告末尾附加一个Markdown表格来组织报告中的要点，使其有条理且易于阅读。""",
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}",
+                    "您是一个有用的AI助手，与其他助手协作。"
+                    " 使用提供的工具来推进回答问题。"
+                    " 如果您无法完全回答，没关系；另一个有不同工具的助手"
+                    " 会在您停止的地方继续帮助。执行您能做的工作以取得进展。"
+                    " 如果您或任何其他助手有最终交易提案：**买入/持有/卖出**或可交付成果，"
+                    " 请在您的回应前加上最终交易提案：**买入/持有/卖出**，这样团队就知道停止了。"
+                    " 您可以使用以下工具：{tool_names}。\n{system_message}"
+                    "供您参考，当前日期是{current_date}。我们想要分析的当前公司是{ticker}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]

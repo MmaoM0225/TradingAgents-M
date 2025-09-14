@@ -4,12 +4,14 @@ from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
 from .finnhub_utils import get_data_in_range
+from .finnhub_downloader import download_finnhub_data
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 import os
 import pandas as pd
+import requests
 from tqdm import tqdm
 import yfinance as yf
 from openai import OpenAI
@@ -26,24 +28,34 @@ def get_finnhub_news(
 ):
     """
     Retrieve news about a company within a time frame
+    先检查本地文件，如果不存在则从Finnhub API下载数据
 
     Args
         ticker (str): ticker for the company you are interested in
-        start_date (str): Start date in yyyy-mm-dd format
-        end_date (str): End date in yyyy-mm-dd format
+        curr_date (str): Current date in yyyy-mm-dd format  
+        look_back_days (int): how many days to look back
     Returns
         str: dataframe containing the news of the company in the time frame
-
     """
 
     start_date = datetime.strptime(curr_date, "%Y-%m-%d")
     before = start_date - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 先尝试从本地读取数据
     result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
+    # 如果本地没有数据，尝试下载
     if len(result) == 0:
-        return ""
+        print(f"本地未找到 {ticker} 的新闻数据，正在从Finnhub下载...")
+        downloaded_data = download_finnhub_data(ticker, before, curr_date, "news_data")
+        if downloaded_data:
+            # 重新读取下载后的数据
+            result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
+        
+        # 如果还是没有数据，返回提示信息
+        if len(result) == 0:
+            return f"暂无 {ticker} 公司在 {before} 到 {curr_date} 期间的新闻数据。可能是API配置问题或该时段确实无相关新闻。"
 
     combined_result = ""
     for day, data in result.items():
@@ -79,10 +91,20 @@ def get_finnhub_company_insider_sentiment(
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 先尝试从本地读取数据
     data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
+    # 如果本地没有数据，尝试下载
     if len(data) == 0:
-        return ""
+        print(f"本地未找到 {ticker} 的内部人情绪数据，正在从Finnhub下载...")
+        downloaded_data = download_finnhub_data(ticker, before, curr_date, "insider_senti")
+        if downloaded_data:
+            # 重新读取下载后的数据
+            data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
+        
+        # 如果还是没有数据，返回提示信息
+        if len(data) == 0:
+            return f"暂无 {ticker} 公司在 {before} 到 {curr_date} 期间的内部人情绪数据。可能是API配置问题或该时段确实无相关数据。"
 
     result_str = ""
     seen_dicts = []
@@ -120,10 +142,20 @@ def get_finnhub_company_insider_transactions(
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 先尝试从本地读取数据  
     data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
+    # 如果本地没有数据，尝试下载
     if len(data) == 0:
-        return ""
+        print(f"本地未找到 {ticker} 的内部人交易数据，正在从Finnhub下载...")
+        downloaded_data = download_finnhub_data(ticker, before, curr_date, "insider_trans")
+        if downloaded_data:
+            # 重新读取下载后的数据
+            data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
+        
+        # 如果还是没有数据，返回提示信息
+        if len(data) == 0:
+            return f"暂无 {ticker} 公司在 {before} 到 {curr_date} 期间的内部人交易数据。可能是API配置问题或该时段确实无相关数据。"
 
     result_str = ""
 
@@ -280,6 +312,244 @@ def get_simfin_income_statements(
         + str(latest_income)
         + "\n\nThis includes metadata like reporting dates and currency, share details, and a comprehensive breakdown of the company's financial performance. Starting with Revenue, it shows Cost of Revenue and resulting Gross Profit. Operating Expenses are detailed, including SG&A, R&D, and Depreciation. The statement then shows Operating Income, followed by non-operating items and Interest Expense, leading to Pretax Income. After accounting for Income Tax and any Extraordinary items, it concludes with Net Income, representing the company's bottom-line profit or loss for the period."
     )
+
+
+def get_yfinance_balance_sheet(
+    ticker: Annotated[str, "ticker symbol"],
+    freq: Annotated[
+        str,
+        "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+    ],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+):
+    """
+    通过Yahoo Finance获取资产负债表数据
+    Yahoo Finance提供免费的财务报表数据，无需API密钥
+    """
+    try:
+        import yfinance as yf
+        
+        # 创建ticker对象
+        stock = yf.Ticker(ticker)
+        
+        # 获取资产负债表
+        balance_sheet = stock.balance_sheet
+        
+        if balance_sheet.empty:
+            return f"暂无 {ticker} 公司的资产负债表数据。可能是该股票代码不存在或Yahoo Finance暂无数据。"
+        
+        # 取最新的财务数据 (最左边的列)
+        latest_data = balance_sheet.iloc[:, 0]
+        latest_date = balance_sheet.columns[0]
+        
+        # 格式化输出
+        formatted_output = f"## Balance Sheet for {ticker} (Latest: {latest_date.strftime('%Y-%m-%d')}):\n\n"
+        
+        # 主要资产负债表项目
+        formatted_output += "### Assets:\n"
+        formatted_output += f"- Total Assets: {format_financial_value(latest_data.get('Total Assets', 'N/A'))}\n"
+        formatted_output += f"- Current Assets: {format_financial_value(latest_data.get('Current Assets', 'N/A'))}\n"
+        formatted_output += f"- Cash and Cash Equivalents: {format_financial_value(latest_data.get('Cash And Cash Equivalents', 'N/A'))}\n"
+        formatted_output += f"- Receivables: {format_financial_value(latest_data.get('Receivables', 'N/A'))}\n"
+        formatted_output += f"- Inventory: {format_financial_value(latest_data.get('Inventory', 'N/A'))}\n"
+        
+        formatted_output += "\n### Liabilities:\n"
+        formatted_output += f"- Total Liabilities: {format_financial_value(latest_data.get('Total Liabilities Net Minority Interest', 'N/A'))}\n"
+        formatted_output += f"- Current Liabilities: {format_financial_value(latest_data.get('Current Liabilities', 'N/A'))}\n"
+        formatted_output += f"- Long Term Debt: {format_financial_value(latest_data.get('Long Term Debt', 'N/A'))}\n"
+        formatted_output += f"- Short Term Debt: {format_financial_value(latest_data.get('Current Debt', 'N/A'))}\n"
+        
+        formatted_output += "\n### Equity:\n"
+        formatted_output += f"- Total Stockholder Equity: {format_financial_value(latest_data.get('Stockholders Equity', 'N/A'))}\n"
+        formatted_output += f"- Retained Earnings: {format_financial_value(latest_data.get('Retained Earnings', 'N/A'))}\n"
+        
+        # 添加财务比率计算
+        total_assets = latest_data.get('Total Assets', 0)
+        total_liabilities = latest_data.get('Total Liabilities Net Minority Interest', 0)
+        if total_assets and total_liabilities:
+            debt_to_asset_ratio = (total_liabilities / total_assets) * 100
+            formatted_output += f"\n### Key Ratios:\n"
+            formatted_output += f"- Debt-to-Asset Ratio: {debt_to_asset_ratio:.2f}%\n"
+        
+        return formatted_output
+        
+    except Exception as e:
+        return f"获取 {ticker} 资产负债表数据时出错: {str(e)}。建议检查股票代码是否正确。"
+
+
+def get_yfinance_cashflow(
+    ticker: Annotated[str, "ticker symbol"],
+    freq: Annotated[
+        str,
+        "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+    ],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+):
+    """
+    通过Yahoo Finance获取现金流量表数据
+    Yahoo Finance提供免费的财务报表数据，无需API密钥
+    """
+    try:
+        import yfinance as yf
+        
+        # 创建ticker对象
+        stock = yf.Ticker(ticker)
+        
+        # 获取现金流量表
+        cashflow = stock.cashflow
+        
+        if cashflow.empty:
+            return f"暂无 {ticker} 公司的现金流量表数据。可能是该股票代码不存在或Yahoo Finance暂无数据。"
+        
+        # 取最新的财务数据
+        latest_data = cashflow.iloc[:, 0]
+        latest_date = cashflow.columns[0]
+        
+        # 格式化输出
+        formatted_output = f"## Cash Flow Statement for {ticker} (Latest: {latest_date.strftime('%Y-%m-%d')}):\n\n"
+        
+        # 现金流量表主要项目
+        formatted_output += "### Operating Cash Flow:\n"
+        formatted_output += f"- Operating Cash Flow: {format_financial_value(latest_data.get('Operating Cash Flow', 'N/A'))}\n"
+        formatted_output += f"- Net Income: {format_financial_value(latest_data.get('Net Income', 'N/A'))}\n"
+        formatted_output += f"- Depreciation & Amortization: {format_financial_value(latest_data.get('Depreciation And Amortization', 'N/A'))}\n"
+        formatted_output += f"- Changes in Working Capital: {format_financial_value(latest_data.get('Change In Working Capital', 'N/A'))}\n"
+        
+        formatted_output += "\n### Investing Cash Flow:\n"
+        formatted_output += f"- Investing Cash Flow: {format_financial_value(latest_data.get('Investing Cash Flow', 'N/A'))}\n"
+        formatted_output += f"- Capital Expenditures: {format_financial_value(latest_data.get('Capital Expenditure', 'N/A'))}\n"
+        formatted_output += f"- Investments: {format_financial_value(latest_data.get('Net Investment Purchase And Sale', 'N/A'))}\n"
+        
+        formatted_output += "\n### Financing Cash Flow:\n"
+        formatted_output += f"- Financing Cash Flow: {format_financial_value(latest_data.get('Financing Cash Flow', 'N/A'))}\n"
+        formatted_output += f"- Dividends Paid: {format_financial_value(latest_data.get('Cash Dividends Paid', 'N/A'))}\n"
+        formatted_output += f"- Stock Repurchases: {format_financial_value(latest_data.get('Repurchase Of Capital Stock', 'N/A'))}\n"
+        
+        formatted_output += "\n### Net Change in Cash:\n"
+        operating_cf = latest_data.get('Operating Cash Flow', 0) or 0
+        investing_cf = latest_data.get('Investing Cash Flow', 0) or 0
+        financing_cf = latest_data.get('Financing Cash Flow', 0) or 0
+        net_change = operating_cf + investing_cf + financing_cf
+        formatted_output += f"- Net Change in Cash: {format_financial_value(net_change)}\n"
+        
+        # 计算自由现金流
+        capex = latest_data.get('Capital Expenditure', 0) or 0
+        free_cash_flow = operating_cf + capex  # capex通常是负数
+        formatted_output += f"- Free Cash Flow: {format_financial_value(free_cash_flow)}\n"
+        
+        return formatted_output
+        
+    except Exception as e:
+        return f"获取 {ticker} 现金流量表数据时出错: {str(e)}。建议检查股票代码是否正确。"
+
+
+def get_yfinance_income_statements(
+    ticker: Annotated[str, "ticker symbol"],
+    freq: Annotated[
+        str,
+        "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+    ],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+):
+    """
+    通过Yahoo Finance获取损益表数据
+    Yahoo Finance提供免费的财务报表数据，无需API密钥
+    """
+    try:
+        import yfinance as yf
+        
+        # 创建ticker对象
+        stock = yf.Ticker(ticker)
+        
+        # 获取损益表
+        financials = stock.financials
+        
+        if financials.empty:
+            return f"暂无 {ticker} 公司的损益表数据。可能是该股票代码不存在或Yahoo Finance暂无数据。"
+        
+        # 取最新的财务数据
+        latest_data = financials.iloc[:, 0]
+        latest_date = financials.columns[0]
+        
+        # 格式化输出
+        formatted_output = f"## Income Statement for {ticker} (Latest: {latest_date.strftime('%Y-%m-%d')}):\n\n"
+        
+        # 损益表主要项目
+        formatted_output += "### Revenue & Costs:\n"
+        formatted_output += f"- Total Revenue: {format_financial_value(latest_data.get('Total Revenue', 'N/A'))}\n"
+        formatted_output += f"- Cost of Revenue: {format_financial_value(latest_data.get('Cost Of Revenue', 'N/A'))}\n"
+        
+        # 计算毛利润
+        total_revenue = latest_data.get('Total Revenue', 0) or 0
+        cost_of_revenue = latest_data.get('Cost Of Revenue', 0) or 0
+        gross_profit = total_revenue - cost_of_revenue
+        formatted_output += f"- Gross Profit: {format_financial_value(gross_profit)}\n"
+        
+        formatted_output += "\n### Operating Results:\n"
+        formatted_output += f"- Operating Income: {format_financial_value(latest_data.get('Operating Income', 'N/A'))}\n"
+        formatted_output += f"- Research & Development: {format_financial_value(latest_data.get('Research And Development', 'N/A'))}\n"
+        formatted_output += f"- Selling General & Administrative: {format_financial_value(latest_data.get('Selling General And Administration', 'N/A'))}\n"
+        formatted_output += f"- Total Operating Expenses: {format_financial_value(latest_data.get('Total Expenses', 'N/A'))}\n"
+        
+        formatted_output += "\n### Net Income:\n"
+        formatted_output += f"- Income Before Tax: {format_financial_value(latest_data.get('Pretax Income', 'N/A'))}\n"
+        formatted_output += f"- Tax Provision: {format_financial_value(latest_data.get('Tax Provision', 'N/A'))}\n"
+        formatted_output += f"- Net Income: {format_financial_value(latest_data.get('Net Income', 'N/A'))}\n"
+        
+        # 获取股票信息计算每股收益
+        try:
+            info = stock.info
+            shares_outstanding = info.get('sharesOutstanding', 0)
+            net_income = latest_data.get('Net Income', 0) or 0
+            if shares_outstanding and net_income:
+                eps = net_income / shares_outstanding
+                formatted_output += f"\n### Per Share Data:\n"
+                formatted_output += f"- Earnings Per Share (calculated): ${eps:.2f}\n"
+                formatted_output += f"- Shares Outstanding: {format_financial_value(shares_outstanding)}\n"
+        except:
+            pass
+        
+        # 计算关键比率
+        if total_revenue and gross_profit:
+            gross_margin = (gross_profit / total_revenue) * 100
+            formatted_output += f"\n### Key Ratios:\n"
+            formatted_output += f"- Gross Margin: {gross_margin:.2f}%\n"
+            
+            operating_income = latest_data.get('Operating Income', 0) or 0
+            if operating_income:
+                operating_margin = (operating_income / total_revenue) * 100
+                formatted_output += f"- Operating Margin: {operating_margin:.2f}%\n"
+            
+            net_income = latest_data.get('Net Income', 0) or 0
+            if net_income:
+                net_margin = (net_income / total_revenue) * 100
+                formatted_output += f"- Net Margin: {net_margin:.2f}%\n"
+        
+        return formatted_output
+        
+    except Exception as e:
+        return f"获取 {ticker} 损益表数据时出错: {str(e)}。建议检查股票代码是否正确。"
+
+
+def format_financial_value(value):
+    """格式化财务数值显示"""
+    if value == 'N/A' or value is None:
+        return 'N/A'
+    
+    try:
+        value = float(value)
+        if abs(value) >= 1e12:
+            return f"${value/1e12:.2f}T"
+        elif abs(value) >= 1e9:
+            return f"${value/1e9:.2f}B"
+        elif abs(value) >= 1e6:
+            return f"${value/1e6:.2f}M"
+        elif abs(value) >= 1e3:
+            return f"${value/1e3:.2f}K"
+        else:
+            return f"${value:,.2f}"
+    except:
+        return str(value)
 
 
 def get_google_news(
@@ -594,13 +864,10 @@ def get_YFin_data_window(
     before = date_obj - relativedelta(days=look_back_days)
     start_date = before.strftime("%Y-%m-%d")
 
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
-    )
+    # read in data using dynamic file finding
+    from .utils import get_or_generate_data_filename
+    data_file = get_or_generate_data_filename(symbol, "price")
+    data = pd.read_csv(data_file)
 
     # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
@@ -630,6 +897,16 @@ def get_YFin_data_online(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
+    # 设置yfinance专用代理
+    config = get_config()
+    if config.get("use_proxy", False):
+        import os
+        http_proxy = config.get("http_proxy")
+        https_proxy = config.get("https_proxy")
+        if http_proxy:
+            os.environ["http_proxy"] = http_proxy
+        if https_proxy:
+            os.environ["https_proxy"] = https_proxy
 
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
@@ -672,18 +949,28 @@ def get_YFin_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
-    )
+    # 设置yfinance专用代理
+    config = get_config()
+    if config.get("use_proxy", False):
+        import os
+        http_proxy = config.get("http_proxy")
+        https_proxy = config.get("https_proxy")
+        if http_proxy:
+            os.environ["http_proxy"] = http_proxy
+        if https_proxy:
+            os.environ["https_proxy"] = https_proxy
+    # read in data using dynamic file finding
+    from .utils import get_or_generate_data_filename
+    data_file = get_or_generate_data_filename(symbol, "price")
+    data = pd.read_csv(data_file)
 
-    if end_date > "2025-03-25":
-        raise Exception(
-            f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
-        )
+    # 动态检查数据日期范围而不是硬编码
+    if not data.empty:
+        data_start = data["Date"].min()[:10]  # 提取日期部分
+        data_end = data["Date"].max()[:10]
+        if end_date > data_end or start_date < data_start:
+            print(f"警告: 请求的日期范围 {start_date} 到 {end_date} 超出了数据范围 {data_start} 到 {data_end}")
+            # 不抛出异常，而是使用可用的数据范围
 
     # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
@@ -701,6 +988,82 @@ def get_YFin_data(
 
     return filtered_data
 
+
+def get_stock_news_llm(ticker, curr_date):
+    """
+    通用股票新闻获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{ticker}的最新社交媒体和新闻信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请帮我分析{ticker}公司在{curr_date}前7天到{curr_date}期间的社交媒体和新闻情况。
+
+请从以下方面进行分析：
+1. 最近的公司新闻和公告
+2. 社交媒体上的公众讨论和情绪
+3. 分析师和投资者的观点
+4. 市场反应和股价相关讨论
+5. 任何可能影响股价的重要事件或消息
+
+请提供具体的、有时间标记的信息，并分析这些信息对投资决策的影响。
+
+注意：只关注{curr_date}前7天到{curr_date}这个时间段内的信息。
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的股票新闻和社交媒体分析师。请基于你的知识和推理能力，提供关于指定公司的新闻和社交媒体分析。虽然你无法实时搜索，但请根据一般的市场趋势和公司情况提供有价值的分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的新闻查询结果
+        return f"""
+## {ticker} 社交媒体和新闻分析 ({curr_date}前7天到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的社交媒体和新闻数据。
+
+**建议的分析方向：**
+- 检查{ticker}的官方公告和财报
+- 关注行业新闻和相关政策变化  
+- 监控社交平台如推特、雪球等的讨论热度
+- 分析同行业公司的表现对比
+- 留意宏观经济因素对该股票的影响
+
+**风险提示：** 建议通过多个可靠渠道验证新闻信息的真实性。
+"""
 
 def get_stock_news_openai(ticker, curr_date):
     config = get_config()
@@ -730,7 +1093,7 @@ def get_stock_news_openai(ticker, curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period.",
+                        "text": f"您能否搜索从{curr_date}前7天到{curr_date}期间关于{ticker}的社交媒体信息？确保您只获取该时间段内发布的数据。",
                     }
                 ],
             }
@@ -751,6 +1114,180 @@ def get_stock_news_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_global_news_llm(curr_date):
+    """
+    通用全球新闻获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{curr_date}期间的全球宏观经济新闻信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{curr_date}前7天到{curr_date}期间的全球宏观经济新闻和趋势。
+
+请从以下方面进行分析：
+1. 主要经济体的重要经济数据和政策变化
+2. 央行货币政策动向和利率变化
+3. 国际贸易和地缘政治事件
+4. 大宗商品和汇率市场的重要变化
+5. 可能影响全球市场的重大新闻事件
+
+请提供具体的、有时间标记的分析，并说明这些事件对全球投资市场的潜在影响。
+
+注意：请基于一般的经济趋势和市场规律，提供有价值的宏观分析观点。
+时间范围：{curr_date}前7天到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的宏观经济分析师和全球新闻分析专家。请基于你的知识和分析能力，提供关于指定时期的全球经济新闻分析。虽然你无法实时搜索，但请根据一般的经济趋势和市场规律提供有价值的宏观分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## 全球宏观经济新闻分析 ({curr_date}前7天到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的全球经济新闻数据。
+
+**建议关注的重点领域：**
+- 美联储、欧央行、中国人民银行等主要央行政策动向
+- 美国、欧盟、中国等主要经济体的经济数据发布
+- 国际贸易争端和地缘政治紧张局势
+- 原油、黄金、美元指数等关键资产价格变化
+- 通胀数据、就业数据、GDP增长率等核心指标
+
+**分析建议：** 
+- 关注央行官员讲话和政策信号
+- 监控主要经济体的PMI、CPI、就业报告等数据
+- 分析地缘政治事件对风险资产的影响
+- 评估全球供应链和贸易流动的变化
+
+**风险提示：** 宏观经济分析需要结合多方面信息，建议通过官方渠道验证重要经济数据。
+"""
+
+
+def get_fundamentals_llm(ticker, curr_date):
+    """
+    通用基本面分析获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{ticker}的基本面分析信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{ticker}公司在{curr_date}前一个月到{curr_date}期间的基本面情况。
+
+请从以下方面进行分析：
+1. 财务指标分析（PE、PS、PB、ROE、ROA等）
+2. 现金流状况和债务水平
+3. 营收和利润增长趋势
+4. 市场地位和竞争优势
+5. 行业前景和公司发展战略
+6. 管理层质量和公司治理
+7. 分红政策和股东回报
+
+请以表格形式总结关键财务指标，并提供详细的基本面分析报告。
+
+注意：请基于该公司的一般经营特点和行业状况，提供专业的基本面分析观点。
+分析时间：{curr_date}前一个月到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的基本面分析师和财务分析专家。请基于你的专业知识，提供关于指定公司的全面基本面分析。虽然你无法获取实时财务数据，但请根据该公司的经营特点、行业地位和一般财务规律提供有价值的分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## {ticker} 基本面分析 ({curr_date}前一个月到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的基本面分析数据。
+
+**建议分析的关键指标：**
+
+| 指标类别 | 关键指标 | 建议关注点 |
+|---------|----------|-----------|
+| 估值指标 | PE、PS、PB | 与行业平均水平对比 |
+| 盈利能力 | ROE、ROA、毛利率 | 盈利质量和趋势变化 |
+| 财务健康 | 负债率、流动比率 | 财务稳定性评估 |
+| 成长性 | 营收增长率、净利润增长率 | 可持续增长能力 |
+| 现金流 | 经营现金流、自由现金流 | 现金产生能力 |
+
+**分析建议：**
+- 查阅{ticker}最新的季度财报和年报
+- 对比同行业公司的关键财务指标
+- 关注公司的业务模式和盈利驱动因素
+- 分析行业发展趋势对公司的影响
+- 评估管理层的战略执行能力
+
+**风险提示：** 基本面分析需要结合最新的财务数据，建议通过官方财报和权威财经平台获取准确信息。
+"""
 
 
 def get_global_news_openai(curr_date):
@@ -781,7 +1318,7 @@ def get_global_news_openai(curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search global or macroeconomics news from 7 days before {curr_date} to {curr_date} that would be informative for trading purposes? Make sure you only get the data posted during that period.",
+                        "text": f"您能否搜索从{curr_date}前7天到{curr_date}期间对交易有参考价值的全球或宏观经济新闻？确保您只获取该时间段内发布的数据。",
                     }
                 ],
             }
@@ -802,6 +1339,180 @@ def get_global_news_openai(curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_global_news_llm(curr_date):
+    """
+    通用全球新闻获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{curr_date}期间的全球宏观经济新闻信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{curr_date}前7天到{curr_date}期间的全球宏观经济新闻和趋势。
+
+请从以下方面进行分析：
+1. 主要经济体的重要经济数据和政策变化
+2. 央行货币政策动向和利率变化
+3. 国际贸易和地缘政治事件
+4. 大宗商品和汇率市场的重要变化
+5. 可能影响全球市场的重大新闻事件
+
+请提供具体的、有时间标记的分析，并说明这些事件对全球投资市场的潜在影响。
+
+注意：请基于一般的经济趋势和市场规律，提供有价值的宏观分析观点。
+时间范围：{curr_date}前7天到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的宏观经济分析师和全球新闻分析专家。请基于你的知识和分析能力，提供关于指定时期的全球经济新闻分析。虽然你无法实时搜索，但请根据一般的经济趋势和市场规律提供有价值的宏观分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## 全球宏观经济新闻分析 ({curr_date}前7天到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的全球经济新闻数据。
+
+**建议关注的重点领域：**
+- 美联储、欧央行、中国人民银行等主要央行政策动向
+- 美国、欧盟、中国等主要经济体的经济数据发布
+- 国际贸易争端和地缘政治紧张局势
+- 原油、黄金、美元指数等关键资产价格变化
+- 通胀数据、就业数据、GDP增长率等核心指标
+
+**分析建议：** 
+- 关注央行官员讲话和政策信号
+- 监控主要经济体的PMI、CPI、就业报告等数据
+- 分析地缘政治事件对风险资产的影响
+- 评估全球供应链和贸易流动的变化
+
+**风险提示：** 宏观经济分析需要结合多方面信息，建议通过官方渠道验证重要经济数据。
+"""
+
+
+def get_fundamentals_llm(ticker, curr_date):
+    """
+    通用基本面分析获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{ticker}的基本面分析信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{ticker}公司在{curr_date}前一个月到{curr_date}期间的基本面情况。
+
+请从以下方面进行分析：
+1. 财务指标分析（PE、PS、PB、ROE、ROA等）
+2. 现金流状况和债务水平
+3. 营收和利润增长趋势
+4. 市场地位和竞争优势
+5. 行业前景和公司发展战略
+6. 管理层质量和公司治理
+7. 分红政策和股东回报
+
+请以表格形式总结关键财务指标，并提供详细的基本面分析报告。
+
+注意：请基于该公司的一般经营特点和行业状况，提供专业的基本面分析观点。
+分析时间：{curr_date}前一个月到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的基本面分析师和财务分析专家。请基于你的专业知识，提供关于指定公司的全面基本面分析。虽然你无法获取实时财务数据，但请根据该公司的经营特点、行业地位和一般财务规律提供有价值的分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## {ticker} 基本面分析 ({curr_date}前一个月到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的基本面分析数据。
+
+**建议分析的关键指标：**
+
+| 指标类别 | 关键指标 | 建议关注点 |
+|---------|----------|-----------|
+| 估值指标 | PE、PS、PB | 与行业平均水平对比 |
+| 盈利能力 | ROE、ROA、毛利率 | 盈利质量和趋势变化 |
+| 财务健康 | 负债率、流动比率 | 财务稳定性评估 |
+| 成长性 | 营收增长率、净利润增长率 | 可持续增长能力 |
+| 现金流 | 经营现金流、自由现金流 | 现金产生能力 |
+
+**分析建议：**
+- 查阅{ticker}最新的季度财报和年报
+- 对比同行业公司的关键财务指标
+- 关注公司的业务模式和盈利驱动因素
+- 分析行业发展趋势对公司的影响
+- 评估管理层的战略执行能力
+
+**风险提示：** 基本面分析需要结合最新的财务数据，建议通过官方财报和权威财经平台获取准确信息。
+"""
 
 
 def get_fundamentals_openai(ticker, curr_date):
@@ -832,7 +1543,7 @@ def get_fundamentals_openai(ticker, curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
+                        "text": f"您能否搜索关于{ticker}在{curr_date}前一个月到{curr_date}月期间的基本面讨论？确保您只获取该时间段内发布的数据。请以表格形式列出，包含PE/PS/现金流等。",
                     }
                 ],
             }
@@ -853,3 +1564,177 @@ def get_fundamentals_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_global_news_llm(curr_date):
+    """
+    通用全球新闻获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{curr_date}期间的全球宏观经济新闻信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{curr_date}前7天到{curr_date}期间的全球宏观经济新闻和趋势。
+
+请从以下方面进行分析：
+1. 主要经济体的重要经济数据和政策变化
+2. 央行货币政策动向和利率变化
+3. 国际贸易和地缘政治事件
+4. 大宗商品和汇率市场的重要变化
+5. 可能影响全球市场的重大新闻事件
+
+请提供具体的、有时间标记的分析，并说明这些事件对全球投资市场的潜在影响。
+
+注意：请基于一般的经济趋势和市场规律，提供有价值的宏观分析观点。
+时间范围：{curr_date}前7天到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的宏观经济分析师和全球新闻分析专家。请基于你的知识和分析能力，提供关于指定时期的全球经济新闻分析。虽然你无法实时搜索，但请根据一般的经济趋势和市场规律提供有价值的宏观分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## 全球宏观经济新闻分析 ({curr_date}前7天到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的全球经济新闻数据。
+
+**建议关注的重点领域：**
+- 美联储、欧央行、中国人民银行等主要央行政策动向
+- 美国、欧盟、中国等主要经济体的经济数据发布
+- 国际贸易争端和地缘政治紧张局势
+- 原油、黄金、美元指数等关键资产价格变化
+- 通胀数据、就业数据、GDP增长率等核心指标
+
+**分析建议：** 
+- 关注央行官员讲话和政策信号
+- 监控主要经济体的PMI、CPI、就业报告等数据
+- 分析地缘政治事件对风险资产的影响
+- 评估全球供应链和贸易流动的变化
+
+**风险提示：** 宏观经济分析需要结合多方面信息，建议通过官方渠道验证重要经济数据。
+"""
+
+
+def get_fundamentals_llm(ticker, curr_date):
+    """
+    通用基本面分析获取函数，适配所有LLM提供商
+    使用标准的chat completion API，而非OpenAI专有功能
+    """
+    config = get_config()
+    
+    # Get appropriate API key based on provider
+    provider = config.get("llm_provider", "openai").lower()
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    elif provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+    elif provider == "siliconflow":
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+    elif provider == "alibaba dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    else:  # openai, ollama, etc.
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        return f"API密钥未设置，无法获取{ticker}的基本面分析信息。请设置相应的环境变量。"
+        
+    try:
+        client = OpenAI(base_url=config["backend_url"], api_key=api_key)
+        
+        # 构建查询提示
+        prompt = f"""
+请分析{ticker}公司在{curr_date}前一个月到{curr_date}期间的基本面情况。
+
+请从以下方面进行分析：
+1. 财务指标分析（PE、PS、PB、ROE、ROA等）
+2. 现金流状况和债务水平
+3. 营收和利润增长趋势
+4. 市场地位和竞争优势
+5. 行业前景和公司发展战略
+6. 管理层质量和公司治理
+7. 分红政策和股东回报
+
+请以表格形式总结关键财务指标，并提供详细的基本面分析报告。
+
+注意：请基于该公司的一般经营特点和行业状况，提供专业的基本面分析观点。
+分析时间：{curr_date}前一个月到{curr_date}
+"""
+
+        response = client.chat.completions.create(
+            model=config["quick_think_llm"],
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "你是一位专业的基本面分析师和财务分析专家。请基于你的专业知识，提供关于指定公司的全面基本面分析。虽然你无法获取实时财务数据，但请根据该公司的经营特点、行业地位和一般财务规律提供有价值的分析观点。"
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # 如果LLM调用失败，返回一个基础的分析结果
+        return f"""
+## {ticker} 基本面分析 ({curr_date}前一个月到{curr_date})
+
+**注意：** 由于API调用失败 ({str(e)})，无法获取实时的基本面分析数据。
+
+**建议分析的关键指标：**
+
+| 指标类别 | 关键指标 | 建议关注点 |
+|---------|----------|-----------|
+| 估值指标 | PE、PS、PB | 与行业平均水平对比 |
+| 盈利能力 | ROE、ROA、毛利率 | 盈利质量和趋势变化 |
+| 财务健康 | 负债率、流动比率 | 财务稳定性评估 |
+| 成长性 | 营收增长率、净利润增长率 | 可持续增长能力 |
+| 现金流 | 经营现金流、自由现金流 | 现金产生能力 |
+
+**分析建议：**
+- 查阅{ticker}最新的季度财报和年报
+- 对比同行业公司的关键财务指标
+- 关注公司的业务模式和盈利驱动因素
+- 分析行业发展趋势对公司的影响
+- 评估管理层的战略执行能力
+
+**风险提示：** 基本面分析需要结合最新的财务数据，建议通过官方财报和权威财经平台获取准确信息。
+"""

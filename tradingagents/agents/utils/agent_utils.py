@@ -343,6 +343,75 @@ class Toolkit:
 
     @staticmethod
     @tool
+    def get_yfinance_balance_sheet(
+        ticker: Annotated[str, "ticker symbol"],
+        freq: Annotated[
+            str,
+            "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+        ],
+        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    ):
+        """
+        Retrieve balance sheet data from Yahoo Finance (completely free)
+        
+        Args:
+            ticker (str): ticker symbol of the company
+            freq (str): reporting frequency (Yahoo Finance provides annual data by default)
+            curr_date (str): current date you are trading at, yyyy-mm-dd
+        Returns:
+            str: a report of the company's most recent balance sheet from Yahoo Finance
+        """
+        data_balance_sheet = interface.get_yfinance_balance_sheet(ticker, freq, curr_date)
+        return data_balance_sheet
+
+    @staticmethod
+    @tool
+    def get_yfinance_cashflow(
+        ticker: Annotated[str, "ticker symbol"],
+        freq: Annotated[
+            str,
+            "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+        ],
+        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    ):
+        """
+        Retrieve cash flow statement data from Yahoo Finance (completely free)
+        
+        Args:
+            ticker (str): ticker symbol of the company
+            freq (str): reporting frequency (Yahoo Finance provides annual data by default)
+            curr_date (str): current date you are trading at, yyyy-mm-dd
+        Returns:
+            str: a report of the company's most recent cash flow statement from Yahoo Finance
+        """
+        data_cashflow = interface.get_yfinance_cashflow(ticker, freq, curr_date)
+        return data_cashflow
+
+    @staticmethod
+    @tool
+    def get_yfinance_income_statements(
+        ticker: Annotated[str, "ticker symbol"],
+        freq: Annotated[
+            str,
+            "reporting frequency: annual / quarterly (Yahoo Finance默认提供年度数据)",
+        ],
+        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    ):
+        """
+        Retrieve income statement data from Yahoo Finance (completely free)
+        
+        Args:
+            ticker (str): ticker symbol of the company
+            freq (str): reporting frequency (Yahoo Finance provides annual data by default)
+            curr_date (str): current date you are trading at, yyyy-mm-dd
+        Returns:
+            str: a report of the company's most recent income statement from Yahoo Finance
+        """
+        data_income_stmt = interface.get_yfinance_income_statements(ticker, freq, curr_date)
+        return data_income_stmt
+
+    @staticmethod
+    @tool
     def get_google_news(
         query: Annotated[str, "Query to search with"],
         curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"],
@@ -360,6 +429,26 @@ class Toolkit:
         google_news_results = interface.get_google_news(query, curr_date, 7)
 
         return google_news_results
+
+    @staticmethod
+    @tool
+    def get_stock_news_llm(
+        ticker: Annotated[str, "the company's ticker"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ):
+        """
+        通用股票新闻获取工具，适配所有LLM提供商。
+        获取指定公司在指定日期前一周的新闻和社交媒体分析。
+        Args:
+            ticker (str): 公司股票代码，例如 AAPL, TSLA
+            curr_date (str): 当前日期，格式为 yyyy-mm-dd
+        Returns:
+            str: 包含该公司最新新闻和社交媒体分析的格式化字符串
+        """
+
+        llm_news_results = interface.get_stock_news_llm(ticker, curr_date)
+
+        return llm_news_results
 
     @staticmethod
     @tool
@@ -417,3 +506,41 @@ class Toolkit:
         )
 
         return openai_fundamentals_results
+
+    @staticmethod
+    @tool
+    def get_global_news_llm(
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ):
+        """
+        通用全球新闻获取工具，适配所有LLM提供商。
+        获取指定日期前一周的全球宏观经济新闻和分析。
+        Args:
+            curr_date (str): 当前日期，格式为 yyyy-mm-dd
+        Returns:
+            str: 包含全球宏观经济新闻分析的格式化字符串
+        """
+
+        llm_global_news_results = interface.get_global_news_llm(curr_date)
+
+        return llm_global_news_results
+
+    @staticmethod
+    @tool
+    def get_fundamentals_llm(
+        ticker: Annotated[str, "the company's ticker"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ):
+        """
+        通用基本面分析获取工具，适配所有LLM提供商。
+        获取指定公司在指定日期前一个月的基本面分析。
+        Args:
+            ticker (str): 公司股票代码，例如 AAPL, TSLA
+            curr_date (str): 当前日期，格式为 yyyy-mm-dd
+        Returns:
+            str: 包含该公司基本面分析的格式化字符串
+        """
+
+        llm_fundamentals_results = interface.get_fundamentals_llm(ticker, curr_date)
+
+        return llm_fundamentals_results
