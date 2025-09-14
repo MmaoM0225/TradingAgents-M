@@ -17,8 +17,8 @@ def create_market_analyst(llm, toolkit):
             ]
         else:
             tools = [
-                toolkit.get_YFin_data,
-                toolkit.get_stockstats_indicators_report,
+                toolkit.get_YFin_data_online,
+                toolkit.get_stockstats_indicators_report_online,
             ]
 
         system_message = (
@@ -47,7 +47,7 @@ MACD相关：
 - vwma: VWMA：按成交量加权的移动平均。用法：通过整合价格行为和成交量数据来确认趋势。提示：注意成交量激增的偏斜结果；与其他成交量分析结合使用。
 
 - 选择提供多样化和互补信息的指标。避免重复（例如，不要同时选择rsi和stochrsi）。还要简要解释为什么它们适合给定的市场背景。调用工具时，请使用上面提供的指标的确切名称，因为它们是定义的参数，否则您的调用将失败。请确保首先调用get_YFin_data来检索生成指标所需的CSV。写一份详细而细致的趋势观察报告。不要简单地说趋势是混合的，提供详细和精细的分析和见解，可能有助于交易者做出决策。"""
-            + """ 确保在报告末尾附加一个Markdown表格来组织报告中的要点，使其有条理且易于阅读。"""
+            + """ 确保使用中文在报告末尾附加一个Markdown表格来组织报告中的要点，使其有条理且易于阅读。"""
         )
 
         prompt = ChatPromptTemplate.from_messages(

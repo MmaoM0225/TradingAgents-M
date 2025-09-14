@@ -149,8 +149,8 @@ class TradingAgentsGraph:
             ),
             "social": ToolNode(
                 [
-                    # online tools
-                    self.toolkit.get_stock_news_openai,
+                    # online tools (通用LLM兼容版本)
+                    self.toolkit.get_stock_news_llm,
                     # offline tools
                     self.toolkit.get_reddit_stock_info,
                 ]
@@ -159,6 +159,7 @@ class TradingAgentsGraph:
                 [
                     # online tools
                     self.toolkit.get_global_news_openai,
+                    self.toolkit.get_global_news_llm,
                     self.toolkit.get_google_news,
                     # offline tools
                     self.toolkit.get_finnhub_news,
@@ -169,9 +170,15 @@ class TradingAgentsGraph:
                 [
                     # online tools
                     self.toolkit.get_fundamentals_openai,
-                    # offline tools
+                    self.toolkit.get_fundamentals_llm,
+                    # offline tools - Yahoo Finance financial statements (primary, completely free)
+                    self.toolkit.get_yfinance_balance_sheet,
+                    self.toolkit.get_yfinance_cashflow,
+                    self.toolkit.get_yfinance_income_statements,
+                    # offline tools - insider data
                     self.toolkit.get_finnhub_company_insider_sentiment,
                     self.toolkit.get_finnhub_company_insider_transactions,
+                    # offline tools - SimFin financial statements (fallback)
                     self.toolkit.get_simfin_balance_sheet,
                     self.toolkit.get_simfin_cashflow,
                     self.toolkit.get_simfin_income_stmt,

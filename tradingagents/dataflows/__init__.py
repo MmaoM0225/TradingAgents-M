@@ -13,10 +13,14 @@ from .interface import (
     get_google_news,
     get_reddit_global_news,
     get_reddit_company_news,
-    # Financial statements functions
+    # Financial statements functions - SimFin
     get_simfin_balance_sheet,
     get_simfin_cashflow,
     get_simfin_income_statements,
+    # Financial statements functions - Yahoo Finance
+    get_yfinance_balance_sheet,
+    get_yfinance_cashflow,
+    get_yfinance_income_statements,
     # Technical analysis functions
     get_stock_stats_indicators_window,
     get_stockstats_indicator,
@@ -33,10 +37,14 @@ __all__ = [
     "get_google_news",
     "get_reddit_global_news",
     "get_reddit_company_news",
-    # Financial statements functions
+    # Financial statements functions - SimFin
     "get_simfin_balance_sheet",
     "get_simfin_cashflow",
     "get_simfin_income_statements",
+    # Financial statements functions - Yahoo Finance
+    "get_yfinance_balance_sheet",
+    "get_yfinance_cashflow",
+    "get_yfinance_income_statements",
     # Technical analysis functions
     "get_stock_stats_indicators_window",
     "get_stockstats_indicator",

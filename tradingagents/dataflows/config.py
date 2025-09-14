@@ -2,6 +2,14 @@ import tradingagents.default_config as default_config
 from typing import Dict, Optional
 import os
 
+# 尝试加载.env文件中的环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # 如果没有安装python-dotenv，就跳过
+    pass
+
 # Use default config but allow it to be overridden
 _config: Optional[Dict] = None
 DATA_DIR: Optional[str] = None
