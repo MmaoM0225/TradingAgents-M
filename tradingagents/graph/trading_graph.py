@@ -142,9 +142,12 @@ class TradingAgentsGraph:
                     # online tools
                     self.toolkit.get_YFin_data_online,
                     self.toolkit.get_stockstats_indicators_report_online,
-                    # offline tools
+                    # offline tools - US/Global markets
                     self.toolkit.get_YFin_data,
                     self.toolkit.get_stockstats_indicators_report,
+                    # offline tools - A股市场数据 (Chinese stocks)
+                    self.toolkit.get_tushare_stock_data,
+                    self.toolkit.get_tushare_stock_stats,
                 ]
             ),
             "social": ToolNode(
@@ -182,6 +185,12 @@ class TradingAgentsGraph:
                     self.toolkit.get_simfin_balance_sheet,
                     self.toolkit.get_simfin_cashflow,
                     self.toolkit.get_simfin_income_stmt,
+                    # offline tools - Tushare A股财务数据 (Chinese stocks financial statements)
+                    self.toolkit.get_tushare_company_info,
+                    self.toolkit.get_tushare_balance_sheet,
+                    self.toolkit.get_tushare_cashflow,
+                    self.toolkit.get_tushare_income_statements,
+                    self.toolkit.get_tushare_daily_basic,
                 ]
             ),
         }

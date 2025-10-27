@@ -166,7 +166,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Qwen-Plus - 通义千问增强版", "qwen-plus"),
             ("Qwen-Turbo - 通义千问高速版", "qwen-turbo"),
             ("Qwen-Flash-2025-07-28 - 通义千问快速版最新", "qwen-flash-2025-07-28"),
-            ("Qwen-Max - 通义千问旗舰版", "qwen-max"),
+            ("Qwen-Max - 通义千问旗舰版", "qwen3-max"),
         ],
         "openrouter": [
             ("DeepSeek R1 - Latest reasoning model with advanced capabilities", "deepseek/deepseek-r1:free"),

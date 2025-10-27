@@ -5,6 +5,16 @@ from .stockstats_utils import *
 from .googlenews_utils import *
 from .finnhub_utils import get_data_in_range
 from .finnhub_downloader import download_finnhub_data
+from .tushare_utils import TushareUtils
+from .tushare_interface import (
+    get_tushare_stock_data,
+    get_tushare_company_info,
+    get_tushare_balance_sheet,
+    get_tushare_cashflow,
+    get_tushare_income_statements,
+    get_tushare_daily_basic,
+    get_tushare_stock_stats,
+)
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime

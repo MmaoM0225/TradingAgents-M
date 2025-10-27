@@ -27,6 +27,14 @@ from .interface import (
     # Market data functions
     get_YFin_data_window,
     get_YFin_data,
+    # Tushare A股数据函数
+    get_tushare_stock_data,
+    get_tushare_company_info,
+    get_tushare_balance_sheet,
+    get_tushare_cashflow,
+    get_tushare_income_statements,
+    get_tushare_daily_basic,
+    get_tushare_stock_stats,
 )
 
 __all__ = [
@@ -51,4 +59,12 @@ __all__ = [
     # Market data functions
     "get_YFin_data_window",
     "get_YFin_data",
+    # Tushare A股数据函数
+    "get_tushare_stock_data",
+    "get_tushare_company_info",
+    "get_tushare_balance_sheet",
+    "get_tushare_cashflow",
+    "get_tushare_income_statements",
+    "get_tushare_daily_basic",
+    "get_tushare_stock_stats",
 ]
