@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.dataflows.tushare_utils import detect_stock_type
 
 
 def create_market_analyst(llm, toolkit):
@@ -10,16 +11,31 @@ def create_market_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
+        # 检测股票类型
+        stock_type = detect_stock_type(ticker)
+        
         if toolkit.config["online_tools"]:
-            tools = [
-                toolkit.get_YFin_data_online,
-                toolkit.get_stockstats_indicators_report_online,
-            ]
+            if stock_type == "CN":  # A股
+                tools = [
+                    toolkit.get_tushare_stock_data,
+                    toolkit.get_tushare_stock_stats,
+                ]
+            else:  # 美股
+                tools = [
+                    toolkit.get_YFin_data_online,
+                    toolkit.get_stockstats_indicators_report_online,
+                ]
         else:
-            tools = [
-                toolkit.get_YFin_data_online,
-                toolkit.get_stockstats_indicators_report_online,
-            ]
+            if stock_type == "CN":  # A股
+                tools = [
+                    toolkit.get_tushare_stock_data,
+                    toolkit.get_tushare_stock_stats,
+                ]
+            else:  # 美股
+                tools = [
+                    toolkit.get_YFin_data_online,
+                    toolkit.get_stockstats_indicators_report_online,
+                ]
 
         system_message = (
             """您是一位负责分析金融市场的交易助手。您的角色是从以下列表中为给定的市场条件或交易策略选择**最相关的指标**。目标是选择最多**8个指标**，提供互补的见解而不重复。类别及每个类别的指标如下：

@@ -29,7 +29,7 @@ config["quick_think_llm"] = "gemini-2.0-flash"  # Use a different model
 # Example 4: Using Alibaba DashScope models (uncomment to use)
 # config["llm_provider"] = "alibaba dashscope"
 # config["backend_url"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-# config["deep_think_llm"] = "qwen-max"      # Flagship model for complex reasoning
+# config["deep_think_llm"] = "qwen3-max"      # Flagship model for complex reasoning
 # config["quick_think_llm"] = "qwen-turbo"   # High-speed model for quick tasks
 
 config["max_debate_rounds"] = 1  # Increase debate rounds

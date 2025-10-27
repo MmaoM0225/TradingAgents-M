@@ -544,3 +544,164 @@ class Toolkit:
         llm_fundamentals_results = interface.get_fundamentals_llm(ticker, curr_date)
 
         return llm_fundamentals_results
+
+    # ==================== Tushare A股数据工具 ====================
+
+    @staticmethod
+    @tool
+    def get_tushare_stock_data(
+        symbol: Annotated[str, "A股代码，如000001、600000或000001.SZ"],
+        start_date: Annotated[str, "开始日期，格式YYYY-mm-dd"],
+        end_date: Annotated[str, "结束日期，格式YYYY-mm-dd"],
+    ) -> str:
+        """
+        获取A股股票价格数据(OHLCV)
+        
+        Args:
+            symbol: A股代码，支持6位数字(自动识别交易所)或完整代码
+            start_date: 开始日期，格式YYYY-mm-dd
+            end_date: 结束日期，格式YYYY-mm-dd
+        
+        Returns:
+            str: 格式化的A股股价数据
+        """
+        
+        stock_data_result = interface.get_tushare_stock_data(symbol, start_date, end_date)
+        
+        return stock_data_result
+
+    @staticmethod
+    @tool
+    def get_tushare_company_info(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+    ) -> str:
+        """
+        获取A股公司详细信息
+        
+        Args:
+            symbol: A股代码，支持6位数字或完整代码
+        
+        Returns:
+            str: 格式化的A股公司信息
+        """
+        
+        company_info_result = interface.get_tushare_company_info(symbol)
+        
+        return company_info_result
+
+    @staticmethod
+    @tool
+    def get_tushare_balance_sheet(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+        freq: Annotated[str, "报告频率: annual(年报) / quarterly(季报)"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"],
+    ) -> str:
+        """
+        获取A股资产负债表数据
+        
+        Args:
+            symbol: A股代码
+            freq: 报告频率，annual或quarterly
+            curr_date: 当前日期
+        
+        Returns:
+            str: 格式化的A股资产负债表数据
+        """
+        
+        balance_sheet_result = interface.get_tushare_balance_sheet(symbol, freq, curr_date)
+        
+        return balance_sheet_result
+
+    @staticmethod
+    @tool
+    def get_tushare_cashflow(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+        freq: Annotated[str, "报告频率: annual(年报) / quarterly(季报)"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"],
+    ) -> str:
+        """
+        获取A股现金流量表数据
+        
+        Args:
+            symbol: A股代码
+            freq: 报告频率，annual或quarterly
+            curr_date: 当前日期
+        
+        Returns:
+            str: 格式化的A股现金流量表数据
+        """
+        
+        cashflow_result = interface.get_tushare_cashflow(symbol, freq, curr_date)
+        
+        return cashflow_result
+
+    @staticmethod
+    @tool
+    def get_tushare_income_statements(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+        freq: Annotated[str, "报告频率: annual(年报) / quarterly(季报)"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"],
+    ) -> str:
+        """
+        获取A股利润表数据
+        
+        Args:
+            symbol: A股代码
+            freq: 报告频率，annual或quarterly
+            curr_date: 当前日期
+        
+        Returns:
+            str: 格式化的A股利润表数据
+        """
+        
+        income_stmt_result = interface.get_tushare_income_statements(symbol, freq, curr_date)
+        
+        return income_stmt_result
+
+    @staticmethod
+    @tool
+    def get_tushare_daily_basic(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"],
+        look_back_days: Annotated[int, "回看天数"] = 30,
+    ) -> str:
+        """
+        获取A股每日基本面数据(市盈率、市净率等)
+        
+        Args:
+            symbol: A股代码
+            curr_date: 当前日期
+            look_back_days: 回看天数，默认30天
+        
+        Returns:
+            str: 格式化的A股基本面数据
+        """
+        
+        daily_basic_result = interface.get_tushare_daily_basic(symbol, curr_date, look_back_days)
+        
+        return daily_basic_result
+
+    @staticmethod
+    @tool
+    def get_tushare_stock_stats(
+        symbol: Annotated[str, "A股代码，如000001或000001.SZ"],
+        indicator: Annotated[str, "技术指标名称，如RSI, MACD, MA等"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"],
+        look_back_days: Annotated[int, "回看天数"] = 30,
+    ) -> str:
+        """
+        获取A股技术指标数据
+        
+        Args:
+            symbol: A股代码，支持6位数字或完整代码
+            indicator: 技术指标名称 (RSI, MACD, MA, EMA, BOLL, KDJ, CCI, ATR, OBV)
+            curr_date: 当前日期
+            look_back_days: 回看天数，默认30天
+        
+        Returns:
+            str: 格式化的A股技术指标数据
+        """
+        
+        stock_stats_result = interface.get_tushare_stock_stats(symbol, indicator, curr_date, look_back_days)
+        
+        return stock_stats_result

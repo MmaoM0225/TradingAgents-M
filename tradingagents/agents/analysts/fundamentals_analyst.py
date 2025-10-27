@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.dataflows.tushare_utils import detect_stock_type
 
 
 def create_fundamentals_analyst(llm, toolkit):
@@ -9,20 +10,32 @@ def create_fundamentals_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
+        # 检测股票类型
+        stock_type = detect_stock_type(ticker)
+        
         if toolkit.config["online_tools"]:
             tools = [toolkit.get_fundamentals_llm]
         else:
-            tools = [
-                toolkit.get_finnhub_company_insider_sentiment,
-                toolkit.get_finnhub_company_insider_transactions,
-                toolkit.get_yfinance_balance_sheet,
-                toolkit.get_yfinance_cashflow,
-                toolkit.get_yfinance_income_statements,
-                # toolkit.get_simfin_balance_sheet,
-                # toolkit.get_simfin_cashflow,
-                # toolkit.get_simfin_income_stmt,
-                
-            ]
+            if stock_type == "CN":  # A股
+                tools = [
+                    # A股数据工具
+                    toolkit.get_tushare_company_info,
+                    toolkit.get_tushare_balance_sheet,
+                    toolkit.get_tushare_cashflow,
+                    toolkit.get_tushare_income_statements,
+                    toolkit.get_tushare_daily_basic,
+                ]
+            else:  # 美股
+                tools = [
+                    toolkit.get_finnhub_company_insider_sentiment,
+                    toolkit.get_finnhub_company_insider_transactions,
+                    toolkit.get_yfinance_balance_sheet,
+                    toolkit.get_yfinance_cashflow,
+                    toolkit.get_yfinance_income_statements,
+                    # toolkit.get_simfin_balance_sheet,
+                    # toolkit.get_simfin_cashflow,
+                    # toolkit.get_simfin_income_stmt,
+                ]
 
         system_message = (
             "您是一位研究员，任务是分析过去一周关于一家公司的基本面信息。请撰写一份关于公司基本面信息的全面报告，如财务文件、公司概况、基本公司财务、公司财务历史、内部人情绪和内部人交易，以获得公司基本面信息的全面视图，以告知交易者。确保包含尽可能多的细节。不要简单地说趋势是混合的，提供详细和精细的分析和见解，可能有助于交易者做出决策。"

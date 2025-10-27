@@ -23,7 +23,10 @@ DEFAULT_CONFIG = {
     # Tool settings  
     "online_tools": False,  
     # Proxy settings
-    "use_proxy": True,
+    "use_proxy": False,
     "http_proxy": "http://127.0.0.1:7890",
     "https_proxy": "http://127.0.0.1:7890",
+    # Tushare settings
+    "tushare_token": os.getenv("TUSHARE_TOKEN"),  # 从环境变量获取tushare token
+
 }
